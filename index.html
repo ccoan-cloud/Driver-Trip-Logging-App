@@ -40,6 +40,8 @@ input,select,textarea{display:block;width:100%;margin-top:4px;padding:11px;font:
 .slot img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .slot b{position:absolute;left:6px;bottom:6px;background:rgba(0,0,0,.65);color:#fff;font-size:12px;padding:1px 7px;border-radius:5px}
 .slot.done{border-style:solid;border-color:var(--ok)}
+.rm{position:absolute;top:6px;right:6px;width:30px;height:30px;border-radius:50%;border:0;background:rgba(0,0,0,.7);color:#fff;font-size:18px;line-height:1;cursor:pointer;z-index:2}
+.slot.add{color:var(--ink)}
 .pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:6px;margin:6px 0 12px}
 .pgrid img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px;cursor:zoom-in;background:var(--chip)}
 .filters{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
@@ -74,7 +76,7 @@ const SLOTS=[["front","Front"],["rear","Rear"],["left","Left side"],["right","Ri
 const REQ=4;
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 const S={cars:[],drivers:[],places:[],trips:[],tab:"home",view:null,ready:false,user:null,
- filt:{from:"",to:"",car:"",driver:""},photos:{},busy:false,err:"",openTrip:null,urls:{}};
+ filt:{from:"",to:"",car:"",driver:""},photos:[],stops:["",""],busy:false,err:"",openTrip:null,urls:{}};
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const pad=n=>String(n).padStart(2,"0");
@@ -91,7 +93,7 @@ async function loadAll(){
   const [c,d,p,t]=await Promise.all([sb.from("cars").select("plate").order("plate"),sb.from("drivers").select("name").order("name"),sb.from("places").select("name").order("name"),sb.from("trips").select("*").order("start_at",{ascending:false}).limit(1000)]);
   const bad=c.error||d.error||p.error||t.error;if(bad){S.err="Could not load data: "+msg(bad)}
   S.cars=(c.data||[]).map(x=>x.plate);S.drivers=(d.data||[]).map(x=>x.name);S.places=(p.data||[]).map(x=>x.name);
-  S.trips=(t.data||[]).map(r=>({id:r.id,car:r.car,driver:r.driver,purpose:r.purpose,from:r.from_place,to:r.to_place,route:r.route,startKm:r.start_km,endKm:r.end_km,startAt:Date.parse(r.start_at),endAt:r.end_at?Date.parse(r.end_at):null,startPhotos:r.start_photos||[],endPhotos:r.end_photos||[],notes:r.notes,status:r.status}));
+  S.trips=(t.data||[]).map(r=>({id:r.id,car:r.car,driver:r.driver,from:r.from_place,to:r.to_place,stops:r.stops&&r.stops.length?r.stops:[r.from_place,r.to_place],startKm:r.start_km,endKm:r.end_km,startAt:Date.parse(r.start_at),endAt:r.end_at?Date.parse(r.end_at):null,startPhotos:r.start_photos||[],endPhotos:r.end_photos||[],notes:r.notes,status:r.status}));
   S.ready=true;
 }
 let tmr;function live(){sb.channel("logbook").on("postgres_changes",{event:"*",schema:"public"},()=>{clearTimeout(tmr);tmr=setTimeout(async()=>{await loadAll();if(!S.view)render()},300)}).subscribe()}
@@ -103,48 +105,52 @@ function shrink(file){return new Promise((res,rej)=>{const url=URL.createObjectU
  im.onload=()=>{const m=1400,r=Math.min(1,m/Math.max(im.width,im.height)),c=document.createElement("canvas");c.width=Math.round(im.width*r);c.height=Math.round(im.height*r);
   c.getContext("2d").drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(url);c.toBlob(b=>b?res(b):rej(new Error("Image failed")),"image/jpeg",.74)};
  im.onerror=()=>rej(new Error("Could not read photo"));im.src=url})}
-async function pick(slot,input){const f=input.files[0];if(!f)return;try{const b=await shrink(f);S.photos[slot]={blob:b,url:URL.createObjectURL(b)};render()}catch(e){S.err=msg(e);render()}}
-const slotsHtml=()=>'<div class="photos">'+SLOTS.map(([k,l],i)=>{const p=S.photos[k];
- return `<div class="slot ${p?"done":""}">${p?`<img src="${p.url}" alt="${l}"><b>${l}</b>`:`${l}${i<REQ?"":" (optional)"}`}<input type="file" accept="image/*" capture="environment" aria-label="${l}" onchange="pick('${k}',this)"></div>`}).join("")+"</div>";
-async function uploadAll(id,phase){const out=[];for(const [k] of SLOTS){const p=S.photos[k];if(!p)continue;const path=`${id}/${phase}-${k}.jpg`;
-  const {error}=await sb.storage.from(BUCKET).upload(path,p.blob,{contentType:"image/jpeg",upsert:true});if(error)throw error;out.push({slot:k,path})}return out}
-const photosOk=()=>SLOTS.slice(0,REQ).every(([k])=>S.photos[k]);
+const MINP=4;
+async function pick(input){const f=input.files[0];input.value="";if(!f)return;try{const b=await shrink(f);S.photos.push({blob:b,url:URL.createObjectURL(b)})}catch(e){S.err=msg(e)}render()}
+function rmPhoto(i){S.photos.splice(i,1);render()}
+const slotsHtml=()=>`<p class="sub" style="margin-top:0">${S.photos.length} photo${S.photos.length===1?"":"s"} · at least ${MINP} needed. Walk around the car and add as many as you like.</p><div class="photos">${S.photos.map((p,i)=>`<div class="slot done"><img src="${p.url}" alt="Photo ${i+1}"><button type="button" class="rm" aria-label="Remove photo ${i+1}" onclick="rmPhoto(${i})">×</button></div>`).join("")}<label class="slot add"><span>+ Add photo</span><input type="file" accept="image/*" capture="environment" aria-label="Add photo" onchange="pick(this)"></label></div>`;
+async function uploadAll(id,phase){const out=[];let i=0;for(const p of S.photos){i++;const path=`${id}/${phase}-${i}.jpg`;const {error}=await sb.storage.from(BUCKET).upload(path,p.blob,{contentType:"image/jpeg",upsert:true});if(error)throw error;out.push({slot:"photo "+i,path})}return out}
+const photosOk=()=>S.photos.length>=MINP;
+function stopsHtml(){return `<h3 style="margin:6px 0 8px">Route</h3><p class="sub" style="margin-top:0">Add every place you go, in order. At least two.</p>${S.stops.map((s,i)=>`<div class="add" style="margin-bottom:8px"><input list="pl" autocomplete="off" aria-label="Stop ${i+1}" placeholder="${i===0?"Starting point":"Stop "+(i+1)}" value="${esc(s)}" oninput="S.stops[${i}]=this.value">${S.stops.length>2?`<button type="button" class="btn alt" aria-label="Remove stop ${i+1}" onclick="rmStop(${i})">×</button>`:""}</div>`).join("")}<button type="button" class="btn alt" style="margin-bottom:14px" onclick="addStop()">+ Add stop</button>`}
+function addStop(){S.stops.push("");render();const a=document.querySelectorAll("input[list=pl]");if(a.length)a[a.length-1].focus()}
+function rmStop(i){S.stops.splice(i,1);render()}
 
 /* ---- actions ---- */
-function go(tab){S.tab=tab;S.view=null;S.err="";S.photos={};S.openTrip=null;render();scrollTo(0,0)}
-function startForm(p){S.view={type:"start",car:p};S.photos={};S.err="";render();scrollTo(0,0)}
-function endForm(p){S.view={type:"end",car:p};S.photos={};S.err="";const t=openFor(p);if(t)ensureUrls(t.startPhotos);render();scrollTo(0,0)}
+function go(tab){S.tab=tab;S.view=null;S.err="";S.photos=[];S.openTrip=null;render();scrollTo(0,0)}
+function startForm(p){S.view={type:"start",car:p};S.photos=[];S.stops=["",""];S.err="";render();scrollTo(0,0)}
+function endForm(p){S.view={type:"end",car:p};S.photos=[];S.err="";const t=openFor(p);if(t)ensureUrls(t.startPhotos);render();scrollTo(0,0)}
 async function submitStart(){
-  const v=id=>$("#"+id).value.trim(),km=parseInt(v("km")),driver=v("driver"),from=v("from"),to=v("to");
-  if(!driver||!from||!to||isNaN(km)){S.err="Fill in driver, from, to and start km.";return render()}
-  if(!photosOk()){S.err="Take the four required photos (front, rear, left, right).";return render()}
+  const v=id=>$("#"+id).value.trim(),km=parseInt(v("km")),driver=v("driver"),stops=S.stops.map(x=>x.trim()).filter(Boolean);
+  if(!driver||isNaN(km)){S.err="Choose a driver and fill in the start km.";return render()}
+  if(stops.length<2){S.err="Add at least two stops: where you leave from and where you go.";return render()}
+  if(!photosOk()){S.err="Take at least 4 photos of the car.";return render()}
   S.busy=true;S.err="";render();
   try{
     const id=crypto.randomUUID(),ph=await uploadAll(id,"start");
-    const {error}=await sb.from("trips").insert({id,car:S.view.car,driver,purpose:document.querySelector("input[name=p]:checked").value,from_place:from,to_place:to,route:v("route"),start_km:km,start_photos:ph});
+    const {error}=await sb.from("trips").insert({id,car:S.view.car,driver,from_place:stops[0],to_place:stops[stops.length-1],route:stops.join(" – "),stops,start_km:km,start_photos:ph});
     if(error)throw error.code==="23505"?new Error("This car already has an open trip. Someone just started it."):error;
     ls.set("driver",driver);
-    await sb.from("places").upsert([from,to].map(name=>({name})),{onConflict:"name",ignoreDuplicates:true});
+    await sb.from("places").upsert([...new Set(stops)].map(name=>({name})),{onConflict:"name",ignoreDuplicates:true});
     await sb.from("drivers").upsert([{name:driver}],{onConflict:"name",ignoreDuplicates:true});
-    await loadAll();S.busy=false;S.view=null;S.photos={};S.tab="home";render();
+    await loadAll();S.busy=false;S.view=null;S.photos=[];S.tab="home";render();
   }catch(e){S.busy=false;S.err="Could not save the trip: "+msg(e);render()}
 }
 async function submitEnd(){
   const t=openFor(S.view.car),km=parseInt($("#km").value);
   if(isNaN(km)||km<t.startKm){S.err="End km must be at least "+t.startKm+".";return render()}
-  if(!photosOk()){S.err="Take the four required photos (front, rear, left, right).";return render()}
+  if(!photosOk()){S.err="Take at least 4 photos of the car.";return render()}
   S.busy=true;S.err="";render();
   try{
     const ph=await uploadAll(t.id,"end");
     const {error}=await sb.from("trips").update({end_km:km,end_photos:ph,notes:$("#notes").value.trim(),status:"done"}).eq("id",t.id);
     if(error)throw error;
-    await loadAll();S.busy=false;S.view=null;S.photos={};S.tab="home";render();
+    await loadAll();S.busy=false;S.view=null;S.photos=[];S.tab="home";render();
   }catch(e){S.busy=false;S.err="Could not save: "+msg(e);render()}
 }
 function filtered(){const f=S.filt;return S.trips.filter(t=>(!f.car||t.car===f.car)&&(!f.driver||t.driver===f.driver)&&(!f.from||dkey(t.startAt)>=f.from)&&(!f.to||dkey(t.startAt)<=f.to))}
 function exportCsv(){const q=v=>'"'+String(v??"").replace(/"/g,'""')+'"';
-  const h=["Date","Car","Start km","End km","Km driven","From","To","Route","Start time","End time","Driver","Type"];
-  const rows=filtered().map(t=>[fmtD(t.startAt),t.car,t.startKm,t.endKm??"",t.endKm!=null?t.endKm-t.startKm:"",t.from,t.to,t.route,fmtT(t.startAt),t.endAt?fmtT(t.endAt):"",t.driver,t.purpose]);
+  const h=["Date","Car","Start km","End km","Km driven","From","To","Route","Start time","End time","Driver"];
+  const rows=filtered().map(t=>[fmtD(t.startAt),t.car,t.startKm,t.endKm??"",t.endKm!=null?t.endKm-t.startKm:"",t.from,t.to,t.stops.join(" – "),fmtT(t.startAt),t.endAt?fmtT(t.endAt):"",t.driver]);
   const blob=new Blob(["\ufeff"+[h,...rows].map(r=>r.map(q).join(";")).join("\n")],{type:"text/csv"});
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="logbook-"+dkey(Date.now())+".csv";a.click()}
 async function addItem(key){const i=$("#new"+key),v=i.value.trim();if(!v)return;
@@ -172,15 +178,13 @@ function homeHtml(){
 function startHtml(){const p=S.view.car,d=ls.get("driver");
   return `<h2>Start trip · <span class="plate">${esc(p)}</span></h2><p class="sub">The start time is recorded by the server when you press Start.</p><datalist id="pl">${S.places.map(x=>`<option value="${esc(x)}">`).join("")}</datalist>
   <label class="f">Driver<select id="driver"><option value="">Choose driver</option>${S.drivers.map(x=>`<option ${x===d?"selected":""}>${esc(x)}</option>`).join("")}<option value="__new">Someone else…</option></select></label>
-  <div class="seg"><label><input type="radio" name="p" value="Business" checked><span>Business</span></label><label><input type="radio" name="p" value="Private"><span>Private</span></label></div>
-  <div class="row"><label class="f">From<input id="from" list="pl" autocomplete="off"></label><label class="f">To<input id="to" list="pl" autocomplete="off"></label></div>
-  <label class="f">Route / stops (optional)<input id="route" list="pl" placeholder="Church – Plaza – Church"></label>
+  ${stopsHtml()}
   <label class="f">Odometer at start (km)<input id="km" type="number" inputmode="numeric" value="${lastKm(p)}"></label>
-  <h3 style="margin:6px 0 8px">Car condition photos</h3><p class="sub" style="margin-top:0">Front, rear, left, right. Add close-ups of any damage.</p>${slotsHtml()}${errHtml()}
+  <h3 style="margin:6px 0 8px">Car condition photos</h3>${slotsHtml()}${errHtml()}
   <div class="bar"><button class="btn" ${S.busy?"disabled":""} onclick="submitStart()">${S.busy?"Saving, uploading photos…":"Start trip"}</button></div>
   <button class="btn alt" onclick="go('home')">Cancel</button>`}
 function endHtml(){const t=openFor(S.view.car);if(!t){S.view=null;return homeHtml()}
-  return `<h2>End trip · <span class="plate">${esc(t.car)}</span></h2><div class="note">${esc(t.driver)} · ${esc(t.from)} to ${esc(t.to)}<br>Started ${fmtT(t.startAt)} at ${t.startKm} km</div>
+  return `<h2>End trip · <span class="plate">${esc(t.car)}</span></h2><div class="note">${esc(t.driver)} · ${t.stops.map(esc).join(" → ")}<br>Started ${fmtT(t.startAt)} at ${t.startKm} km</div>
   <label class="f">Odometer at end (km)<input id="km" type="number" inputmode="numeric" min="${t.startKm}" placeholder="${t.startKm}"></label>
   <h3 style="margin:6px 0 8px">Car condition photos</h3>${slotsHtml()}
   <label class="f">Notes or damage (optional)<textarea id="notes" rows="2"></textarea></label>${errHtml()}
@@ -193,9 +197,9 @@ function logHtml(){const rows=filtered(),f=S.filt;
   return `<div class="filters"><label>From date<input type="date" value="${f.from}" onchange="setF('from',this.value)"></label><label>To date<input type="date" value="${f.to}" onchange="setF('to',this.value)"></label>
   <label>Car<select onchange="setF('car',this.value)">${opt(S.cars,f.car)}</select></label><label>Driver<select onchange="setF('driver',this.value)">${opt(dr,f.driver)}</select></label></div>
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><span class="sub">${rows.length} trip${rows.length===1?"":"s"}</span>${rows.length?`<button class="btn alt" onclick="exportCsv()">Export CSV</button>`:""}</div>
-  ${rows.length?rows.map(t=>{const o=S.openTrip===t.id;return `<div class="card trip" onclick="toggle('${t.id}')"><div class="top"><span>${fmtD(t.startAt)} · <span class="plate" style="font-size:14px">${esc(t.car)}</span></span><span class="pill">${t.status==="open"?"In progress":esc(t.purpose)}</span></div>
-  <div>${esc(t.driver)} · ${esc(t.from)} to ${esc(t.to)}</div><div class="sub">${fmtT(t.startAt)}${t.endAt?" – "+fmtT(t.endAt):""} · ${t.startKm}${t.endKm!=null?" → "+t.endKm+" km ("+(t.endKm-t.startKm)+" driven)":" km"}</div>
-  ${o?`<div onclick="event.stopPropagation()">${t.route?`<p class="sub">Route: ${esc(t.route)}</p>`:""}${t.notes?`<p class="sub">Notes: ${esc(t.notes)}</p>`:""}<h3 style="font-size:15px;margin-top:10px">At start</h3>${gridHtml(t.startPhotos)}<h3 style="font-size:15px">At end</h3>${t.status==="open"?`<p class="sub">Trip still in progress.</p>`:gridHtml(t.endPhotos)}</div>`:""}</div>`}).join(""):`<div class="empty">No trips match these filters.</div>`}`}
+  ${rows.length?rows.map(t=>{const o=S.openTrip===t.id;return `<div class="card trip" onclick="toggle('${t.id}')"><div class="top"><span>${fmtD(t.startAt)} · <span class="plate" style="font-size:14px">${esc(t.car)}</span></span>${t.status==="open"?'<span class="pill">In progress</span>':""}</div>
+  <div>${esc(t.driver)}</div><div>${t.stops.map(esc).join(" → ")}</div><div class="sub">${fmtT(t.startAt)}${t.endAt?" – "+fmtT(t.endAt):""} · ${t.startKm}${t.endKm!=null?" → "+t.endKm+" km ("+(t.endKm-t.startKm)+" driven)":" km"}</div>
+  ${o?`<div onclick="event.stopPropagation()">${t.notes?`<p class="sub">Notes: ${esc(t.notes)}</p>`:""}<h3 style="font-size:15px;margin-top:10px">At start</h3>${gridHtml(t.startPhotos)}<h3 style="font-size:15px">At end</h3>${t.status==="open"?`<p class="sub">Trip still in progress.</p>`:gridHtml(t.endPhotos)}</div>`:""}</div>`}).join(""):`<div class="empty">No trips match these filters.</div>`}`}
 function setupHtml(){const sec=(key,title,ph,items)=>`<div class="card"><h3>${title}</h3><div class="chips">${items.map(x=>`<span>${esc(x)}<button aria-label="Remove ${esc(x)}" onclick="delItem('${key}','${esc(x).replace(/'/g,"\\'")}')">×</button></span>`).join("")||'<span class="sub" style="background:none">Nothing yet</span>'}</div><div class="add"><input id="new${key}" placeholder="${ph}"><button class="btn" onclick="addItem('${key}')">Add</button></div></div>`;
   return `<p class="sub">These lists feed the dropdowns. Places are also added automatically from trips.</p>${errHtml()}${sec("cars","Cars (plate)","H-602-DG",S.cars)}${sec("drivers","Drivers","Name",S.drivers)}${sec("places","Places","Church, Airport…",S.places)}`}
 
