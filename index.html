@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Car logbook</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Instrument+Sans:wght@400;500;600&display=swap">
+<style>
+:root{--bg:#eef3ec;--card:#fbfdfa;--ink:#1b2a5e;--mute:#5d6b7a;--rule:#b9cfbf;--accent:#1b2a5e;--onacc:#fff;--warn:#b8322a;--ok:#2c7a4b;--chip:#dfeadf;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root{--bg:#121a16;--card:#1a241f;--ink:#c9d6ff;--mute:#93a39a;--rule:#34483c;--accent:#9db4ff;--onacc:#101830;--warn:#ff8a80;--ok:#7bd69b;--chip:#243229}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 "Instrument Sans",system-ui,sans-serif}
+h1,h2,h3{font-family:"Bricolage Grotesque",system-ui,sans-serif;margin:0}
+main{max-width:720px;margin:0 auto;padding:16px 16px 90px}
+header{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px;gap:8px}
+header h1{font-size:26px;font-weight:800}
+nav{display:flex;gap:4px;background:var(--chip);padding:4px;border-radius:12px;margin-bottom:18px}
+nav button{flex:1;border:0;background:none;color:var(--mute);padding:9px;border-radius:9px;font:600 15px "Instrument Sans",system-ui,sans-serif;cursor:pointer}
+nav button[aria-current="true"]{background:var(--card);color:var(--ink);box-shadow:0 0 0 1px var(--rule)}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,label:focus-within{outline:3px solid var(--accent);outline-offset:2px}
+.card{background:var(--card);border:1px solid var(--rule);border-radius:14px;padding:14px;margin-bottom:12px}
+.car{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.plate{display:inline-block;background:#f4c900;color:#111;font:800 18px "Bricolage Grotesque",sans-serif;padding:2px 10px;border-radius:5px;border:2px solid #111;letter-spacing:.04em}
+.sub{color:var(--mute);font-size:14px}
+.btn{border:0;background:var(--accent);color:var(--onacc);font:600 16px "Instrument Sans",system-ui,sans-serif;padding:12px 18px;border-radius:10px;cursor:pointer;min-height:46px}
+.btn.alt{background:none;color:var(--ink);box-shadow:inset 0 0 0 1.5px var(--rule)}
+.btn.warn{background:var(--warn);color:#fff}
+.btn:disabled{opacity:.45;cursor:default}
+.busy{color:var(--warn);font-weight:600}.free{color:var(--ok);font-weight:600}
+label.f{display:block;margin:0 0 12px;font-weight:600;font-size:14px}
+input,select,textarea{display:block;width:100%;margin-top:4px;padding:11px;font:16px "Instrument Sans",system-ui,sans-serif;color:var(--ink);background:var(--card);border:1.5px solid var(--rule);border-radius:9px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.seg{display:flex;gap:8px;margin-bottom:12px}.seg label{flex:1;margin:0}
+.seg input{position:absolute;opacity:0;width:1px}
+.seg span{display:block;text-align:center;padding:11px;border:1.5px solid var(--rule);border-radius:9px;font-weight:600;cursor:pointer}
+.seg input:checked+span{background:var(--accent);color:var(--onacc);border-color:var(--accent)}
+.photos{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:12px}
+.slot{position:relative;aspect-ratio:4/3;border:2px dashed var(--rule);border-radius:10px;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:600;font-size:14px;color:var(--mute);overflow:hidden;cursor:pointer;background:var(--card)}
+.slot input{position:absolute;inset:0;opacity:0;cursor:pointer;margin:0;height:100%}
+.slot img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.slot b{position:absolute;left:6px;bottom:6px;background:rgba(0,0,0,.65);color:#fff;font-size:12px;padding:1px 7px;border-radius:5px}
+.slot.done{border-style:solid;border-color:var(--ok)}
+.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:6px;margin:6px 0 12px}
+.pgrid img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:8px;cursor:zoom-in;background:var(--chip)}
+.filters{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.filters label{font-size:13px;font-weight:600;margin:0}
+.trip{cursor:pointer}
+.trip .top{display:flex;justify-content:space-between;gap:8px;font-weight:600}
+.pill{font-size:12px;font-weight:600;padding:2px 8px;border-radius:99px;background:var(--chip)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.chips span{background:var(--chip);padding:4px 6px 4px 10px;border-radius:99px;font-size:14px;display:flex;align-items:center;gap:4px}
+.chips button{border:0;background:none;color:var(--mute);font-size:18px;cursor:pointer;line-height:1}
+.add{display:flex;gap:8px}.add input{margin:0}
+.empty{text-align:center;color:var(--mute);padding:28px 10px}
+.note{background:var(--chip);border-radius:10px;padding:10px 12px;font-size:14px;margin-bottom:12px}
+.err{color:var(--warn);font-weight:600;margin:8px 0}
+#zoom{position:fixed;inset:0;background:rgba(0,0,0,.9);display:none;align-items:center;justify-content:center;z-index:9}
+#zoom.on{display:flex}#zoom img{max-width:100%;max-height:100%}
+.bar{position:fixed;left:0;right:0;bottom:0;padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));background:var(--bg);border-top:1px solid var(--rule)}
+.bar .btn{width:100%;max-width:688px;display:block;margin:0 auto}
+</style>
+</head>
+<body>
+<main id="app"><div class="empty">Loading logbook…</div></main>
+<div id="zoom" role="dialog" aria-label="Photo"><img alt=""></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+/* ===== CONFIG: paste your values from Supabase > Project Settings > API ===== */
+const SUPABASE_URL="https://mrpzcinzgcbnquomiiaa.supabase.co";
+const SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1ycHpjaW56Z2NibnF1b21paWFhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE3NTQ1OTUsImV4cCI6MjEwNzMzMDU5NX0.xrr1K9rMu0YBlS3Jf8gOnnFPpjDOfIvHRYTwcYoRgGs";
+/* ============================================================================ */
+const BUCKET="car-photos";
+const SLOTS=[["front","Front"],["rear","Rear"],["left","Left side"],["right","Right side"],["extra1","Damage / extra"],["extra2","Damage / extra"]];
+const REQ=4;
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+const S={cars:[],drivers:[],places:[],trips:[],tab:"home",view:null,ready:false,user:null,
+ filt:{from:"",to:"",car:"",driver:""},photos:{},busy:false,err:"",openTrip:null,urls:{}};
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const pad=n=>String(n).padStart(2,"0");
+const fmtT=t=>{const d=new Date(t);return pad(d.getHours())+":"+pad(d.getMinutes())};
+const fmtD=t=>{const d=new Date(t);return pad(d.getDate())+"/"+pad(d.getMonth()+1)+"/"+d.getFullYear()};
+const dkey=t=>{const d=new Date(t);return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())};
+const ls={get(k){try{return localStorage.getItem(k)||""}catch(e){return ""}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+const openFor=p=>S.trips.find(t=>t.car===p&&t.status==="open");
+const lastKm=p=>{const t=S.trips.filter(t=>t.car===p&&t.endKm!=null).sort((a,b)=>b.endAt-a.endAt)[0];return t?t.endKm:""};
+const msg=e=>(e&&(e.message||e.error_description))||"unknown error";
+
+/* ---- data ---- */
+async function loadAll(){
+  const [c,d,p,t]=await Promise.all([sb.from("cars").select("plate").order("plate"),sb.from("drivers").select("name").order("name"),sb.from("places").select("name").order("name"),sb.from("trips").select("*").order("start_at",{ascending:false}).limit(1000)]);
+  const bad=c.error||d.error||p.error||t.error;if(bad){S.err="Could not load data: "+msg(bad)}
+  S.cars=(c.data||[]).map(x=>x.plate);S.drivers=(d.data||[]).map(x=>x.name);S.places=(p.data||[]).map(x=>x.name);
+  S.trips=(t.data||[]).map(r=>({id:r.id,car:r.car,driver:r.driver,purpose:r.purpose,from:r.from_place,to:r.to_place,route:r.route,startKm:r.start_km,endKm:r.end_km,startAt:Date.parse(r.start_at),endAt:r.end_at?Date.parse(r.end_at):null,startPhotos:r.start_photos||[],endPhotos:r.end_photos||[],notes:r.notes,status:r.status}));
+  S.ready=true;
+}
+let tmr;function live(){sb.channel("logbook").on("postgres_changes",{event:"*",schema:"public"},()=>{clearTimeout(tmr);tmr=setTimeout(async()=>{await loadAll();if(!S.view)render()},300)}).subscribe()}
+async function ensureUrls(ph){const need=(ph||[]).map(p=>p.path).filter(p=>!S.urls[p]);if(!need.length)return;
+  const {data}=await sb.storage.from(BUCKET).createSignedUrls(need,3600);(data||[]).forEach(x=>{if(x.signedUrl)S.urls[x.path]=x.signedUrl});render()}
+
+/* ---- photos ---- */
+function shrink(file){return new Promise((res,rej)=>{const url=URL.createObjectURL(file),im=new Image();
+ im.onload=()=>{const m=1400,r=Math.min(1,m/Math.max(im.width,im.height)),c=document.createElement("canvas");c.width=Math.round(im.width*r);c.height=Math.round(im.height*r);
+  c.getContext("2d").drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(url);c.toBlob(b=>b?res(b):rej(new Error("Image failed")),"image/jpeg",.74)};
+ im.onerror=()=>rej(new Error("Could not read photo"));im.src=url})}
+async function pick(slot,input){const f=input.files[0];if(!f)return;try{const b=await shrink(f);S.photos[slot]={blob:b,url:URL.createObjectURL(b)};render()}catch(e){S.err=msg(e);render()}}
+const slotsHtml=()=>'<div class="photos">'+SLOTS.map(([k,l],i)=>{const p=S.photos[k];
+ return `<div class="slot ${p?"done":""}">${p?`<img src="${p.url}" alt="${l}"><b>${l}</b>`:`${l}${i<REQ?"":" (optional)"}`}<input type="file" accept="image/*" capture="environment" aria-label="${l}" onchange="pick('${k}',this)"></div>`}).join("")+"</div>";
+async function uploadAll(id,phase){const out=[];for(const [k] of SLOTS){const p=S.photos[k];if(!p)continue;const path=`${id}/${phase}-${k}.jpg`;
+  const {error}=await sb.storage.from(BUCKET).upload(path,p.blob,{contentType:"image/jpeg",upsert:true});if(error)throw error;out.push({slot:k,path})}return out}
+const photosOk=()=>SLOTS.slice(0,REQ).every(([k])=>S.photos[k]);
+
+/* ---- actions ---- */
+function go(tab){S.tab=tab;S.view=null;S.err="";S.photos={};S.openTrip=null;render();scrollTo(0,0)}
+function startForm(p){S.view={type:"start",car:p};S.photos={};S.err="";render();scrollTo(0,0)}
+function endForm(p){S.view={type:"end",car:p};S.photos={};S.err="";const t=openFor(p);if(t)ensureUrls(t.startPhotos);render();scrollTo(0,0)}
+async function submitStart(){
+  const v=id=>$("#"+id).value.trim(),km=parseInt(v("km")),driver=v("driver"),from=v("from"),to=v("to");
+  if(!driver||!from||!to||isNaN(km)){S.err="Fill in driver, from, to and start km.";return render()}
+  if(!photosOk()){S.err="Take the four required photos (front, rear, left, right).";return render()}
+  S.busy=true;S.err="";render();
+  try{
+    const id=crypto.randomUUID(),ph=await uploadAll(id,"start");
+    const {error}=await sb.from("trips").insert({id,car:S.view.car,driver,purpose:document.querySelector("input[name=p]:checked").value,from_place:from,to_place:to,route:v("route"),start_km:km,start_photos:ph});
+    if(error)throw error.code==="23505"?new Error("This car already has an open trip. Someone just started it."):error;
+    ls.set("driver",driver);
+    await sb.from("places").upsert([from,to].map(name=>({name})),{onConflict:"name",ignoreDuplicates:true});
+    await sb.from("drivers").upsert([{name:driver}],{onConflict:"name",ignoreDuplicates:true});
+    await loadAll();S.busy=false;S.view=null;S.photos={};S.tab="home";render();
+  }catch(e){S.busy=false;S.err="Could not save the trip: "+msg(e);render()}
+}
+async function submitEnd(){
+  const t=openFor(S.view.car),km=parseInt($("#km").value);
+  if(isNaN(km)||km<t.startKm){S.err="End km must be at least "+t.startKm+".";return render()}
+  if(!photosOk()){S.err="Take the four required photos (front, rear, left, right).";return render()}
+  S.busy=true;S.err="";render();
+  try{
+    const ph=await uploadAll(t.id,"end");
+    const {error}=await sb.from("trips").update({end_km:km,end_photos:ph,notes:$("#notes").value.trim(),status:"done"}).eq("id",t.id);
+    if(error)throw error;
+    await loadAll();S.busy=false;S.view=null;S.photos={};S.tab="home";render();
+  }catch(e){S.busy=false;S.err="Could not save: "+msg(e);render()}
+}
+function filtered(){const f=S.filt;return S.trips.filter(t=>(!f.car||t.car===f.car)&&(!f.driver||t.driver===f.driver)&&(!f.from||dkey(t.startAt)>=f.from)&&(!f.to||dkey(t.startAt)<=f.to))}
+function exportCsv(){const q=v=>'"'+String(v??"").replace(/"/g,'""')+'"';
+  const h=["Date","Car","Start km","End km","Km driven","From","To","Route","Start time","End time","Driver","Type"];
+  const rows=filtered().map(t=>[fmtD(t.startAt),t.car,t.startKm,t.endKm??"",t.endKm!=null?t.endKm-t.startKm:"",t.from,t.to,t.route,fmtT(t.startAt),t.endAt?fmtT(t.endAt):"",t.driver,t.purpose]);
+  const blob=new Blob(["\ufeff"+[h,...rows].map(r=>r.map(q).join(";")).join("\n")],{type:"text/csv"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="logbook-"+dkey(Date.now())+".csv";a.click()}
+async function addItem(key){const i=$("#new"+key),v=i.value.trim();if(!v)return;
+  const row=key==="cars"?{plate:v.toUpperCase()}:{name:v};const {error}=await sb.from(key).insert(row);
+  if(error&&error.code!=="23505"){S.err=msg(error)}i.value="";await loadAll();render()}
+async function delItem(key,val){if(!confirm("Remove "+val+"? Past trips keep their data."))return;
+  await sb.from(key).delete().eq(key==="cars"?"plate":"name",val);await loadAll();render()}
+function zoom(src){$("#zoom img").src=src;$("#zoom").classList.add("on")}
+$("#zoom").onclick=()=>$("#zoom").classList.remove("on");
+function setF(k,v){S.filt[k]=v;render()}
+function toggle(id){S.openTrip=S.openTrip===id?null:id;const t=S.trips.find(x=>x.id===id);if(S.openTrip&&t)ensureUrls([...t.startPhotos,...t.endPhotos]);render()}
+async function login(){const e=$("#em").value.trim(),p=$("#pw").value;S.busy=true;S.err="";render();
+  const {error}=await sb.auth.signInWithPassword({email:e,password:p});S.busy=false;if(error){S.err="Sign-in failed: "+msg(error);render()}}
+async function logout(){await sb.auth.signOut()}
+
+/* ---- views ---- */
+const errHtml=()=>S.err?`<div class="err" role="alert">${esc(S.err)}</div>`:"";
+const gridHtml=ph=>ph&&ph.length?`<div class="pgrid">${ph.map(p=>S.urls[p.path]?`<img loading="lazy" src="${S.urls[p.path]}" alt="${esc(p.slot)}" onclick="zoom(this.src)">`:`<img alt="Loading">`).join("")}</div>`:`<p class="sub">No photos.</p>`;
+function loginHtml(){return `<div class="card"><h2 style="margin-bottom:12px">Sign in</h2><label class="f">Email<input id="em" type="email" autocomplete="username"></label><label class="f">Password<input id="pw" type="password" autocomplete="current-password" onkeydown="if(event.key==='Enter')login()"></label>${errHtml()}<button class="btn" ${S.busy?"disabled":""} onclick="login()">Sign in</button></div>`}
+function homeHtml(){
+  if(!S.cars.length)return `<div class="empty"><h2>No cars yet</h2><p>Add your cars under Setup to start logging trips.</p><button class="btn" onclick="go('setup')">Go to Setup</button></div>`;
+  return S.cars.map(p=>{const o=openFor(p),lk=lastKm(p);
+    return `<div class="card car"><div><span class="plate">${esc(p)}</span><div class="sub" style="margin-top:6px">${o?`<span class="busy">In use</span> by ${esc(o.driver)} since ${fmtD(o.startAt)} ${fmtT(o.startAt)}`:`<span class="free">Available</span>${lk!==""?" · "+lk+" km":""}`}</div></div>
+    <button class="btn ${o?"warn":""}" onclick="${o?"endForm":"startForm"}('${esc(p)}')">${o?"End trip":"Start trip"}</button></div>`}).join("")}
+function startHtml(){const p=S.view.car,d=ls.get("driver");
+  return `<h2>Start trip · <span class="plate">${esc(p)}</span></h2><p class="sub">The start time is recorded by the server when you press Start.</p><datalist id="pl">${S.places.map(x=>`<option value="${esc(x)}">`).join("")}</datalist>
+  <label class="f">Driver<select id="driver"><option value="">Choose driver</option>${S.drivers.map(x=>`<option ${x===d?"selected":""}>${esc(x)}</option>`).join("")}<option value="__new">Someone else…</option></select></label>
+  <div class="seg"><label><input type="radio" name="p" value="Business" checked><span>Business</span></label><label><input type="radio" name="p" value="Private"><span>Private</span></label></div>
+  <div class="row"><label class="f">From<input id="from" list="pl" autocomplete="off"></label><label class="f">To<input id="to" list="pl" autocomplete="off"></label></div>
+  <label class="f">Route / stops (optional)<input id="route" list="pl" placeholder="Church – Plaza – Church"></label>
+  <label class="f">Odometer at start (km)<input id="km" type="number" inputmode="numeric" value="${lastKm(p)}"></label>
+  <h3 style="margin:6px 0 8px">Car condition photos</h3><p class="sub" style="margin-top:0">Front, rear, left, right. Add close-ups of any damage.</p>${slotsHtml()}${errHtml()}
+  <div class="bar"><button class="btn" ${S.busy?"disabled":""} onclick="submitStart()">${S.busy?"Saving, uploading photos…":"Start trip"}</button></div>
+  <button class="btn alt" onclick="go('home')">Cancel</button>`}
+function endHtml(){const t=openFor(S.view.car);if(!t){S.view=null;return homeHtml()}
+  return `<h2>End trip · <span class="plate">${esc(t.car)}</span></h2><div class="note">${esc(t.driver)} · ${esc(t.from)} to ${esc(t.to)}<br>Started ${fmtT(t.startAt)} at ${t.startKm} km</div>
+  <label class="f">Odometer at end (km)<input id="km" type="number" inputmode="numeric" min="${t.startKm}" placeholder="${t.startKm}"></label>
+  <h3 style="margin:6px 0 8px">Car condition photos</h3>${slotsHtml()}
+  <label class="f">Notes or damage (optional)<textarea id="notes" rows="2"></textarea></label>${errHtml()}
+  <details><summary class="sub">Photos taken at start</summary>${gridHtml(t.startPhotos)}</details>
+  <div class="bar"><button class="btn" ${S.busy?"disabled":""} onclick="submitEnd()">${S.busy?"Saving, uploading photos…":"End trip"}</button></div>
+  <button class="btn alt" onclick="go('home')">Cancel</button>`}
+function logHtml(){const rows=filtered(),f=S.filt;
+  const opt=(arr,v)=>`<option value="">All</option>`+arr.map(a=>`<option ${a===v?"selected":""}>${esc(a)}</option>`).join("");
+  const dr=[...new Set([...S.drivers,...S.trips.map(t=>t.driver)])];
+  return `<div class="filters"><label>From date<input type="date" value="${f.from}" onchange="setF('from',this.value)"></label><label>To date<input type="date" value="${f.to}" onchange="setF('to',this.value)"></label>
+  <label>Car<select onchange="setF('car',this.value)">${opt(S.cars,f.car)}</select></label><label>Driver<select onchange="setF('driver',this.value)">${opt(dr,f.driver)}</select></label></div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><span class="sub">${rows.length} trip${rows.length===1?"":"s"}</span>${rows.length?`<button class="btn alt" onclick="exportCsv()">Export CSV</button>`:""}</div>
+  ${rows.length?rows.map(t=>{const o=S.openTrip===t.id;return `<div class="card trip" onclick="toggle('${t.id}')"><div class="top"><span>${fmtD(t.startAt)} · <span class="plate" style="font-size:14px">${esc(t.car)}</span></span><span class="pill">${t.status==="open"?"In progress":esc(t.purpose)}</span></div>
+  <div>${esc(t.driver)} · ${esc(t.from)} to ${esc(t.to)}</div><div class="sub">${fmtT(t.startAt)}${t.endAt?" – "+fmtT(t.endAt):""} · ${t.startKm}${t.endKm!=null?" → "+t.endKm+" km ("+(t.endKm-t.startKm)+" driven)":" km"}</div>
+  ${o?`<div onclick="event.stopPropagation()">${t.route?`<p class="sub">Route: ${esc(t.route)}</p>`:""}${t.notes?`<p class="sub">Notes: ${esc(t.notes)}</p>`:""}<h3 style="font-size:15px;margin-top:10px">At start</h3>${gridHtml(t.startPhotos)}<h3 style="font-size:15px">At end</h3>${t.status==="open"?`<p class="sub">Trip still in progress.</p>`:gridHtml(t.endPhotos)}</div>`:""}</div>`}).join(""):`<div class="empty">No trips match these filters.</div>`}`}
+function setupHtml(){const sec=(key,title,ph,items)=>`<div class="card"><h3>${title}</h3><div class="chips">${items.map(x=>`<span>${esc(x)}<button aria-label="Remove ${esc(x)}" onclick="delItem('${key}','${esc(x).replace(/'/g,"\\'")}')">×</button></span>`).join("")||'<span class="sub" style="background:none">Nothing yet</span>'}</div><div class="add"><input id="new${key}" placeholder="${ph}"><button class="btn" onclick="addItem('${key}')">Add</button></div></div>`;
+  return `<p class="sub">These lists feed the dropdowns. Places are also added automatically from trips.</p>${errHtml()}${sec("cars","Cars (plate)","H-602-DG",S.cars)}${sec("drivers","Drivers","Name",S.drivers)}${sec("places","Places","Church, Airport…",S.places)}`}
+
+function render(){
+  const vals={};
+  if(S.view){document.querySelectorAll("#app input:not([type=file]),#app select,#app textarea").forEach(e=>{if(e.id)vals[e.id]=e.value});vals.p=(document.querySelector("input[name=p]:checked")||{}).value}
+  let body;
+  if(!S.user)body=loginHtml();
+  else if(!S.ready)body='<div class="empty">Loading logbook…</div>';
+  else if(S.view)body=S.view.type==="start"?startHtml():endHtml();
+  else body=S.tab==="home"?errHtml()+homeHtml():S.tab==="log"?logHtml():setupHtml();
+  const nav=S.user&&!S.view?`<nav aria-label="Sections">${[["home","Cars"],["log","Logbook"],["setup","Setup"]].map(([k,l])=>`<button ${S.tab===k?'aria-current="true"':""} onclick="go('${k}')">${l}</button>`).join("")}</nav>`:"";
+  $("#app").innerHTML=`<header><h1>Car logbook</h1>${S.user?`<button class="btn alt" style="min-height:36px;padding:6px 12px;font-size:14px" onclick="logout()">Sign out</button>`:""}</header>${nav}${body}`;
+  if(S.view){for(const id in vals){const e=document.getElementById(id);if(e)e.value=vals[id]}if(vals.p){const r=document.querySelector(`input[name=p][value="${vals.p}"]`);if(r)r.checked=true}
+    const dr=$("#driver");if(dr)dr.onchange=()=>{if(dr.value==="__new"){const n=(prompt("Driver name")||"").trim();if(n){sb.from("drivers").upsert([{name:n}],{onConflict:"name",ignoreDuplicates:true}).then(loadAll).then(()=>{render();$("#driver").value=n})}else dr.value=""}}}
+}
+async function onSession(session){const was=!!S.user;S.user=session?session.user:null;
+  if(S.user){if(!was){S.ready=false;render();await loadAll();live()}}else{S.ready=false;sb.removeAllChannels()}render()}
+sb.auth.getSession().then(({data})=>onSession(data.session));
+sb.auth.onAuthStateChange((ev,session)=>{if(ev==="SIGNED_IN"||ev==="SIGNED_OUT")onSession(session)});
+render();
+</script>
+</body>
+</html>
